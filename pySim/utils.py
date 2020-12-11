@@ -172,15 +172,23 @@ def dec_xplmn_w_act(fivehexbytes):
 	res['act'] = dec_act(act_str)
 	return res
 
-def format_xplmn_w_act(hexstr):
-	s = ""
+def dec_xplmns_w_act(hexstr):
+	xplmn_list = []
 	for rec_data in hexstr_to_Nbytearr(hexstr, 5):
-		rec_info = dec_xplmn_w_act(rec_data)
-		if rec_info['mcc'] == 0xFFF and rec_info['mnc'] == 0xFFF:
+		rec_info = {}
+		rec_info["value"] = rec_data
+		rec_info["plmn"] = dec_xplmn_w_act(rec_data)
+		xplmn_list.append(rec_info)
+	return xplmn_list
+
+def format_xplmn_w_act(xplmn_list):
+	s = ""
+	for rec_info in xplmn_list:
+		if rec_info["plmn"]['mcc'] == 0xFFF and rec_info["plmn"]['mnc'] == 0xFFF:
 			rec_str = "unused"
 		else:
-			rec_str = "MCC: %03d MNC: %03d AcT: %s" % (rec_info['mcc'], rec_info['mnc'], ", ".join(rec_info['act']))
-		s += "\t%s # %s\n" % (rec_data, rec_str)
+			rec_str = "MCC: %03d MNC: %03d AcT: %s" % (rec_info["plmn"]['mcc'], rec_info["plmn"]['mnc'], ", ".join(rec_info["plmn"]['act']))
+		s += "\t%s # %s\n" % (rec_info["value"], rec_str)
 	return s
 
 def dec_loci(hexstr):
@@ -221,15 +229,23 @@ def dec_xplmn(threehexbytes):
 	res['mnc'] = dec_mnc_from_plmn(plmn_str)
 	return res
 
-def format_xplmn(hexstr):
-	s = ""
+def dec_xplmns(hexstr):
+	xplmn_list = []
 	for rec_data in hexstr_to_Nbytearr(hexstr, 3):
-		rec_info = dec_xplmn(rec_data)
-		if rec_info['mcc'] == 0xFFF and rec_info['mnc'] == 0xFFF:
-			rec_str = "unused"
+		rec_info = {}
+		rec_info["value"] = rec_data
+		rec_info["plmn"] = dec_xplmn(rec_data)
+		xplmn_list.append(rec_info)
+	return xplmn_list
+
+def format_xplmn(xplmn_list):
+	s = ""
+	for rec in xplmn_list:
+		if rec["plmn"]['mcc'] == 0xFFF and rec["plmn"]['mnc'] == 0xFFF:
+			rec_str = 'unused'
 		else:
-			rec_str = "MCC: %03d MNC: %03d" % (rec_info['mcc'], rec_info['mnc'])
-		s += "\t%s # %s\n" % (rec_data, rec_str)
+			rec_str = "MCC: %03d MNC: %03d" % (rec["plmn"]['mcc'], rec["plmn"]['mnc'])
+		s += "\t%s # %s\n" % (rec["value"], rec_str)
 	return s
 
 def derive_milenage_opc(ki_hex, op_hex):
@@ -386,7 +402,7 @@ def enc_msisdn(msisdn, npi=0x01, ton=0x03):
 
 def dec_st(st, table="sim"):
 	"""
-	Parses the EF S/U/IST and prints the list of available services in EF S/U/IST
+	Parses the EF S/U/IST and returns a list of available services in EF S/U/IST
 	"""
 
 	if table == "isim":
@@ -401,7 +417,7 @@ def dec_st(st, table="sim"):
 
 	st_bytes = [st[i:i+2] for i in range(0, len(st), 2) ]
 
-	avail_st = ""
+	avail_st = []
 	# Get each byte and check for available services
 	for i in range(0, len(st_bytes)):
 		# Byte i contains info about Services num (8i+1) to num (8i+8)
@@ -414,8 +430,20 @@ def dec_st(st, table="sim"):
 				# Byte X contains info about Services num (8X-7) to num (8X)
 				# bit = 1: service available
 				# bit = 0: service not available
-				avail_st += '\tService %d - %s\n' % ((8*i) + j, lookup_map[(8*i) + j])
+				service = {}
+				service["index"] = (8*i) + j
+				service["name"] = lookup_map[(8*i) + j]
+				avail_st.append(service)
 			byte = byte >> 1
+	return avail_st
+
+def format_st(st_list):
+	"""
+	Formats the list of available services from dec_st into a string.
+	"""
+	avail_st = ""
+	for service in st_list:
+		avail_st += '\tService %d - %s\n' % (service["index"], service["name"])
 	return avail_st
 
 def first_TLV_parser(bytelist):
@@ -648,7 +676,7 @@ def dec_ePDGSelection(sixhexbytes):
 	res['epdg_fqdn_format'] = epdg_fqdn_format_str == '00' and 'Operator Identifier FQDN' or 'Location based FQDN'
 	return res
 
-def format_ePDGSelection(hexstr):
+def dec_ePDGSelections(hexstr):
 	ePDGSelection_info_tag_chars = 2
 	ePDGSelection_info_tag_str = hexstr[:2]
 	# Minimum length
@@ -669,13 +697,22 @@ def format_ePDGSelection(hexstr):
 	content_str = hexstr[ePDGSelection_info_tag_chars+len_chars:]
 	# Right pad to prevent index out of range - multiple of 6 bytes
 	content_str = rpad(content_str, len(content_str) + (12 - (len(content_str) % 12)))
-	s = ""
+	epgdl_list = []
 	for rec_data in hexstr_to_Nbytearr(content_str, 6):
-		rec_info = dec_ePDGSelection(rec_data)
-		if rec_info['mcc'] == 0xFFF and rec_info['mnc'] == 0xFFF:
+		rec_info = {}
+		rec_info["value"] = rec_data
+		rec_info["plmn"] = dec_ePDGSelection(rec_data)
+		epgdl_list.append(rec_info)
+	return epgdl_list
+
+def format_ePDGSelection(epgdl_list):
+	s = ""
+	for rec_info in epgdl_list:
+		if rec_info["plmn"]['mcc'] == 0xFFF and rec_info["plmn"]['mnc'] == 0xFFF:
 			rec_str = "unused"
 		else:
 			rec_str = "MCC: %03d MNC: %03d ePDG Priority: %s ePDG FQDN format: %s" % \
-					(rec_info['mcc'], rec_info['mnc'], rec_info['epdg_priority'], rec_info['epdg_fqdn_format'])
-		s += "\t%s # %s\n" % (rec_data, rec_str)
+					(rec_info["plmn"]['mcc'], rec_info["plmn"]['mnc'], rec_info["plmn"]['epdg_priority'], rec_info["plmn"]['epdg_fqdn_format'])
+		s += "\t%s # %s\n" % (rec_info["value"], rec_str)
+
 	return s

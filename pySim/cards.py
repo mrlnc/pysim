@@ -81,7 +81,7 @@ class Card(object):
 	def read_hplmn_act(self):
 		(res, sw) = self._scc.read_binary(EF['HPLMNAcT'])
 		if sw == '9000':
-			return (format_xplmn_w_act(res), sw)
+			return (dec_xplmns_w_act(res), sw)
 		else:
 			return (None, sw)
 
@@ -106,7 +106,7 @@ class Card(object):
 	def read_oplmn_act(self):
 		(res, sw) = self._scc.read_binary(EF['OPLMNwAcT'])
 		if sw == '9000':
-			return (format_xplmn_w_act(res), sw)
+			return (dec_xplmns_w_act(res), sw)
 		else:
 			return (None, sw)
 
@@ -125,7 +125,7 @@ class Card(object):
 	def read_plmn_act(self):
 		(res, sw) = self._scc.read_binary(EF['PLMNwAcT'])
 		if sw == '9000':
-			return (format_xplmn_w_act(res), sw)
+			return (dec_xplmns_w_act(res), sw)
 		else:
 			return (None, sw)
 
@@ -253,7 +253,7 @@ class UsimCard(Card):
 	def read_ehplmn(self):
 		(res, sw) = self._scc.read_binary(EF_USIM_ADF_map['EHPLMN'])
 		if sw == '9000':
-			return (format_xplmn(res), sw)
+			return (dec_xplmns(res), sw)
 		else:
 			return (None, sw)
 
@@ -280,7 +280,7 @@ class UsimCard(Card):
 	def read_ePDGSelection(self):
 		(res, sw) = self._scc.read_binary(EF_USIM_ADF_map['ePDGSelection'])
 		if sw == '9000':
-			return (format_ePDGSelection(res), sw)
+			return (dec_ePDGSelections(res), sw)
 		else:
 			return (None, sw)
 
@@ -288,9 +288,9 @@ class UsimCard(Card):
 		(res, sw) = self._scc.read_binary(EF_USIM_ADF_map['UST'])
 		if sw == '9000':
 			# Print those which are available
-			return ([res, dec_st(res, table="usim")], sw)
+			return (res, sw)
 		else:
-			return ([None, None], sw)
+			return (None, sw)
 
 
 class _MagicSimBase(Card):

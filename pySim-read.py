@@ -28,6 +28,7 @@ import os
 import random
 import re
 import sys
+import json
 from pySim.ts_51_011 import EF, DF, EF_SST_map, EF_AD_mode_map
 from pySim.ts_31_102 import EF_UST_map, EF_USIM_ADF_map
 from pySim.ts_31_103 import EF_IST_map
@@ -35,7 +36,7 @@ from pySim.ts_31_103 import EF_IST_map
 from pySim.commands import SimCardCommands
 from pySim.cards import card_detect, Card
 from pySim.utils import h2b, swap_nibbles, rpad, dec_imsi, dec_iccid, dec_msisdn
-from pySim.utils import format_xplmn_w_act, dec_spn, dec_st, init_reader, dec_epdgid
+from pySim.utils import format_xplmn_w_act, format_xplmn, dec_spn, dec_st, format_st, init_reader, dec_epdgid
 from pySim.utils import h2s, format_ePDGSelection
 
 def parse_options():
@@ -65,6 +66,10 @@ def parse_options():
 	parser.add_option("--osmocon", dest="osmocon_sock", metavar="PATH",
 			help="Socket path for Calypso (e.g. Motorola C1XX) based reader (via OsmocomBB)",
 			default=None,
+		)
+	parser.add_option('--json', dest="json_output", action='store_true',
+			help="Print JSON Output",
+			default=False
 		)
 
 	(options, args) = parser.parse_args()
@@ -106,6 +111,8 @@ if __name__ == '__main__':
 	# Initialize Card object by auto detecting the card
 	card = card_detect("auto", scc) or Card(scc)
 
+	card_info = {}
+
 	# Read all AIDs on the UICC
 	card.read_aids()
 
@@ -113,6 +120,7 @@ if __name__ == '__main__':
 	(res, sw) = card.read_iccid()
 	if sw == '9000':
 		print("ICCID: %s" % (res,))
+		card_info["ICCID"] = res
 	else:
 		print("ICCID: Can't read, response code = %s" % (sw,))
 
@@ -120,6 +128,7 @@ if __name__ == '__main__':
 	(res, sw) = card.read_imsi()
 	if sw == '9000':
 		print("IMSI: %s" % (res,))
+		card_info["IMSI"] = res
 	else:
 		print("IMSI: Can't read, response code = %s" % (sw,))
 
@@ -128,6 +137,7 @@ if __name__ == '__main__':
 		(res, sw) = card.read_gid1()
 		if sw == '9000':
 			print("GID1: %s" % (res,))
+			card_info["GID1"] = res
 		else:
 			print("GID1: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -138,6 +148,7 @@ if __name__ == '__main__':
 		(res, sw) = card.read_binary('GID2')
 		if sw == '9000':
 			print("GID2: %s" % (res,))
+			card_info["GID2"] = res
 		else:
 			print("GID2: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -147,6 +158,7 @@ if __name__ == '__main__':
 	(res, sw) = card.read_record('SMSP', 1)
 	if sw == '9000':
 		print("SMSP: %s" % (res,))
+		card_info["SMSP"] = res
 	else:
 		print("SMSP: Can't read, response code = %s" % (sw,))
 
@@ -157,6 +169,10 @@ if __name__ == '__main__':
 			print("SPN: %s" % (res[0] or "Not available"))
 			print("Display HPLMN: %s" % (res[1],))
 			print("Display OPLMN: %s" % (res[2],))
+			card_info["SPN"] = {}
+			card_info["SPN"]["name"] = res[0]
+			card_info["SPN"]["hplmn_display"] = res[1]
+			card_info["SPN"]["oplmn_display"] = res[2]
 		else:
 			print("SPN: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -167,6 +183,7 @@ if __name__ == '__main__':
 		(res, sw) = card.read_binary('PLMNsel')
 		if sw == '9000':
 			print("PLMNsel: %s" % (res))
+			card_info["PLMNsel"] = res
 		else:
 			print("PLMNsel: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -176,7 +193,8 @@ if __name__ == '__main__':
 	try:
 		(res, sw) = card.read_plmn_act()
 		if sw == '9000':
-			print("PLMNwAcT:\n%s" % (res))
+			print("PLMNwAcT:\n%s" % (format_xplmn_w_act(res)))
+			card_info["PLMNwAcT"] = res
 		else:
 			print("PLMNwAcT: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -186,7 +204,8 @@ if __name__ == '__main__':
 	try:
 		(res, sw) = card.read_oplmn_act()
 		if sw == '9000':
-			print("OPLMNwAcT:\n%s" % (res))
+			print("OPLMNwAcT:\n%s" % (format_xplmn_w_act(res)))
+			card_info["OPLMNwAcT"] = res
 		else:
 			print("OPLMNwAcT: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -196,7 +215,8 @@ if __name__ == '__main__':
 	try:
 		(res, sw) = card.read_hplmn_act()
 		if sw == '9000':
-			print("HPLMNAcT:\n%s" % (res))
+			print("HPLMNAcT:\n%s" % (format_xplmn_w_act(res)))
+			card_info["HPLMNAcT"] = res
 		else:
 			print("HPLMNAcT: Can't read, response code = %s" % (sw,))
 	except Exception as e:
@@ -206,6 +226,7 @@ if __name__ == '__main__':
 	(res, sw) = card.read_binary('ACC')
 	if sw == '9000':
 		print("ACC: %s" % (res,))
+		card_info["ACC"] = res
 	else:
 		print("ACC: Can't read, response code = %s" % (sw,))
 
@@ -216,6 +237,11 @@ if __name__ == '__main__':
 			# (npi, ton, msisdn) = res
 			if res is not None:
 				print("MSISDN (NPI=%d ToN=%d): %s" % res)
+				card_info["MSISDN"] = {}
+				card_info["MSISDN"]["NPI"] = res[0]
+				card_info["MSISDN"]["TON"] = res[1]
+				card_info["MSISDN"]["MSISDN"] = res[2]
+
 			else:
 				print("MSISDN: Not available")
 		else:
@@ -229,12 +255,18 @@ if __name__ == '__main__':
 		print("Administrative data: %s" % (res,))
 		if res[:2] in EF_AD_mode_map:
 			print("\tMS operation mode: %s" % (EF_AD_mode_map[res[:2]],))
+			card_info["MS_op_mode"] = {}
+			card_info["MS_op_mode"]["value"] = res[:2]
+			card_info["MS_op_mode"]["name"] = EF_AD_mode_map[res[:2]]
 		else:
 			print("\tMS operation mode: (unknown 0x%s)" % (res[:2],))
+			card_info["MS_op_mode"] = "unknown"
 		if int(res[4:6], 16) & 0x01:
 			print("\tCiphering Indicator: enabled")
+			card_info["ciphering_indicator"] = True
 		else:
 			print("\tCiphering Indicator: disabled")
+			card_info["ciphering_indicator"] = False
 	else:
 		print("AD: Can't read, response code = %s" % (sw,))
 
@@ -242,8 +274,11 @@ if __name__ == '__main__':
 	(res, sw) = card.read_binary('SST')
 	if sw == '9000':
 		print("SIM Service Table: %s" % res)
+		card_info["sim_service_table"] = {}
+		card_info["sim_service_table"]["hexstr"] = res
+		card_info["sim_service_table"]["list"] = dec_st(res)
 		# Print those which are available
-		print("%s" % dec_st(res))
+		print("%s" % format_st(dec_st(res)))
 	else:
 		print("SIM Service Table: Can't read, response code = %s" % (sw,))
 
@@ -254,7 +289,8 @@ if __name__ == '__main__':
 		if card.file_exists(EF_USIM_ADF_map['EHPLMN']):
 			(res, sw) = card.read_ehplmn()
 			if sw == '9000':
-				print("EHPLMN:\n%s" % (res))
+				print("EHPLMN:\n%s" % (format_xplmn(res)))
+				card_info["EHPLMN"] = res
 			else:
 				print("EHPLMN: Can't read, response code = %s" % (sw,))
 
@@ -265,8 +301,12 @@ if __name__ == '__main__':
 				# res[1] - Human readable format of services marked available in UST
 				(res, sw) = card.read_ust()
 				if sw == '9000':
-					print("USIM Service Table: %s" % res[0])
-					print("%s" % res[1])
+					card_info["usim_service_table"] = {}
+					card_info["usim_service_table"]["hexstr"] = res
+					card_info["usim_service_table"]["list"] = dec_st(res)
+					# Print those which are available
+					print("USIM Service Table: %s" % res)
+					print("%s" % format_st(dec_st(res, table="usim")))
 				else:
 					print("USIM Service Table: Can't read, response code = %s" % (sw,))
 		except Exception as e:
@@ -278,6 +318,7 @@ if __name__ == '__main__':
 				(res, sw) = card.read_epdgid()
 				if sw == '9000':
 					print("ePDGId:\n%s" % (len(res) and res or '\tNot available\n',))
+					card_info["ePDGId"] = res
 				else:
 					print("ePDGId: Can't read, response code = %s" % (sw,))
 		except Exception as e:
@@ -288,7 +329,8 @@ if __name__ == '__main__':
 			if card.file_exists(EF_USIM_ADF_map['ePDGSelection']):
 				(res, sw) = card.read_ePDGSelection()
 				if sw == '9000':
-					print("ePDGSelection:\n%s" % (res,))
+					print("ePDGSelection:\n%s" % (format_ePDGSelection(res)))
+					card_info["ePDGSelection"] = res
 				else:
 					print("ePDGSelection: Can't read, response code = %s" % (sw,))
 		except Exception as e:
@@ -300,11 +342,17 @@ if __name__ == '__main__':
 		# EF.IST
 		(res, sw) = card.read_binary('6f07')
 		if sw == '9000':
-			print("ISIM Service Table: %s" % res)
+			card_info["isim_service_table"] = {}
+			card_info["isim_service_table"]["hexstr"] = res
+			card_info["isim_service_table"]["list"] = dec_st(res)
 			# Print those which are available
-			print("%s" % dec_st(res, table="isim"))
+			print("ISIM Service Table: %s" % res)
+			print("%s" % format_st(dec_st(res, table="isim")))			# Print those which are available
 		else:
 			print("ISIM Service Table: Can't read, response code = %s" % (sw,))
 
 	# Done for this card and maybe for everything ?
 	print("Done !\n")
+
+	if opts.json_output:
+		print(json.dumps(card_info, indent=4, sort_keys=True))

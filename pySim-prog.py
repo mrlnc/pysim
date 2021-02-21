@@ -41,7 +41,7 @@ except ImportError:
 from pySim.commands import SimCardCommands
 from pySim.cards import _cards_classes, card_detect
 from pySim.utils import h2b, swap_nibbles, rpad, derive_milenage_opc, calculate_luhn, dec_iccid, init_reader
-from pySim.ts_51_011 import EF
+from pySim.ts_51_011 import EF, EF_AD_mode_map
 from pySim.card_handler import *
 from pySim.utils import *
 
@@ -113,6 +113,10 @@ def parse_options():
 	parser.add_option("-y", "--mnc", dest="mnc", type="string",
 			help="Mobile Network Code [default: %default]",
 			default="55",
+		)
+	parser.add_option("--operation-mode", dest="operation_mode", type="string",
+			help="UE Operation Mode [default: %default]",
+			default="00",
 		)
 	parser.add_option("--mnclen", dest="mnclen", type="choice",
 			help="Length of Mobile Network Code [default: %default]",
@@ -232,6 +236,9 @@ def parse_options():
 	if (options.batch_mode):
 		if (options.imsi is not None) or (options.iccid is not None):
 			parser.error("Can't give ICCID/IMSI for batch mode, need to use automatic parameters ! see --num and --secret for more informations")
+
+	if (options.operation_mode and not options.mnc):
+		parser.error("Operation Mode depends on MNC, please specify --mnc")
 
 	if args:
 		parser.error("Extraneous arguments")
@@ -457,6 +464,11 @@ def gen_parameters(opts):
 		if not epdg_mcc.isdigit() or not epdg_mnc.isdigit():
 			raise ValueError('PLMN for ePDG Selection must only contain decimal digits')
 
+	if opts.operation_mode:
+		if not _ishex(opts.operation_mode) or opts.operation_mode not in EF_AD_mode_map.keys():
+			values = ["%s (%s)" % (x, EF_AD_mode_map[x]) for x in EF_AD_mode_map]
+			raise ValueError('Operation Mode must be hex format. Valid options: %s' % values)
+
 	# Return that
 	return {
 		'name'	: opts.name,
@@ -476,6 +488,7 @@ def gen_parameters(opts):
 		'ims_hdomain': opts.ims_hdomain,
 		'impi' : opts.impi,
 		'impu' : opts.impu,
+		'operation_mode': opts.operation_mode
 	}
 
 

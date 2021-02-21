@@ -154,7 +154,7 @@ class Card(object):
 		data, sw = self._scc.update_record(EF['SMSP'], 1, rpad(smsp, 84))
 		return sw
 
-	def update_ad(self, mnc):
+	def update_ad(self, mnc, operation_mode="00"):
 		#See also: 3GPP TS 31.102, chapter 4.2.18
 		mnclen = len(str(mnc))
 		if mnclen == 1:
@@ -168,7 +168,7 @@ class Card(object):
 		if data.lower() == "ffffffff":
 			data = "00000000"
 
-		content = data[0:6] + "%02X" % mnclen
+		content = ("%s" + data[2:6] + "%02X" ) % (operation_mode, mnclen)
 		data, sw = self._scc.update_binary(EF['AD'], content)
 		return sw
 
@@ -911,7 +911,7 @@ class SysmoUSIMSJS1(UsimCard):
 
 		# EF.AD
 		if p.get('mcc') and p.get('mnc'):
-			sw = self.update_ad(p['mnc'])
+			sw = self.update_ad(p['mnc'], p['operation_mode'])
 			if sw != '9000':
 				print("Programming AD failed with code %s"%sw)
 
@@ -1205,7 +1205,7 @@ class WavemobileSim(UsimCard):
 
 		# EF.AD
 		if p.get('mcc') and p.get('mnc'):
-			sw = self.update_ad(p['mnc'])
+			sw = self.update_ad(p['mnc'], p['operation_mode'])
 			if sw != '9000':
 				print("Programming AD failed with code %s"%sw)
 
@@ -1291,7 +1291,7 @@ class SysmoISIMSJA2(UsimCard, IsimCard):
 
 		# EF.AD
 		if p.get('mcc') and p.get('mnc'):
-			sw = self.update_ad(p['mnc'])
+			sw = self.update_ad(p['mnc'], p['operation_mode'])
 			if sw != '9000':
 				print("Programming AD failed with code %s"%sw)
 
@@ -1432,6 +1432,14 @@ class SysmoISIMSJA2(UsimCard, IsimCard):
 				sw = self.update_ust(115, 0)
 				if sw != '9000':
 					print("Programming UST failed with code %s"%sw)
+
+		# TODO
+		print("Disabling 5G Security Parameters")
+		ust_5g = [122, 123, 124, 126]
+		for service in ust_5g:
+			sw = self.update_ust(service, 0)
+			if sw != '9000':
+				print("Disabling 5G Service %i failed with code %s"% (service, sw))
 
 		return
 

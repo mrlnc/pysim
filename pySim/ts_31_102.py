@@ -160,6 +160,10 @@ LOCI_STATUS_map = {
 	3:	'locatation area not allowed'
 }
 
+DF_USIM_map = {
+	'5GS': '5FC0',
+}
+
 EF_USIM_ADF_map = {
 	'LI': '6F05',
 	'ARR': '6F06',
@@ -340,6 +344,27 @@ class EF_UST(TransparentEF):
             """Deactivate a service within EF.UST"""
             self._cmd.card.update_ust(int(arg), 0)
 
+class DF_USIM_5GS(CardDF):
+    def __init__(self, fid=DF_USIM_map['5GS'], name='DF.5GS', desc='5GS related fiiles'):
+        super().__init__(fid=fid, name=name, desc=desc)
+        files = [
+          # I'm looking at 31.102 R15.9
+          TransparentEF('4F01', None, 'EF.5GS3GPPLOCI', '5GS 3GPP location information', size={20,20}),
+          TransparentEF('4F02', None, 'EF.5GSN3GPPLOCI', '5GS non-3GPP location information', size={20,20}),
+          #LinFixedEF('4F03', None, 'EF.5GS3GPPNSC', '5GS 3GPP Access NAS Security Context'),
+          #LinFixedEF('4F04', None, 'EF.5GSN3GPPNSC', '5GS non-3GPP Access NAS Security Context'),
+          TransparentEF('4F05', None, 'EF.5GAUTHKEYS', '5G authentication keys', size={68, None}),
+          TransparentEF('4F06', None, 'EF.UAC_AIC', 'UAC Access Identities Configuration', size={4, 4}),
+          TransparentEF('4F07', None, 'EF.SUCI_Calc_Info', 'SUCI Calculation Information', size={2, None}),
+          TransparentEF('4F08', None, 'EF.OPL5G', '5GS Operator PLMN List', size={10, None}),
+          # TransparentEF('4F09', None, 'EF.NSI', 'Network Specific Identifier'), # FFS
+          TransparentEF('4F0A', None, 'EF.Routing_Indicator', 'Routing Indicator', size={4,4}),
+		]
+
+        self.add_files(files)
+
+    def decode_select_response(self, data_hex):
+        return data_hex
 
 class ADF_USIM(CardADF):
     def __init__(self, aid='a0000000871002', name='ADF.USIM', fid=None, sfid=None,
@@ -370,6 +395,7 @@ class ADF_USIM(CardADF):
           EF_CBMID(sfid=0x0e),
           EF_ECC(sfid=0x01),
           EF_CBMIR(),
+		  DF_USIM_5GS(),
           ]
         self.add_files(files)
 

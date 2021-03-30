@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import unittest
-import pySim.utils as utils
+from pySim import utils
+from pySim.ts_31_102 import EF_SUCI_Calc_Info
 
 class DecTestCase(unittest.TestCase):
 
@@ -80,6 +81,23 @@ class DecTestCase(unittest.TestCase):
 		expected += "\tffffff0000 # unused\n"
 		expected += "\tffffff0000 # unused\n"
 		self.assertEqual(utils.format_xplmn_w_act(input_str), expected)
+
+
+	def testDecodeSuciCalcInfo(self):
+		# TS31.121 4.9.4 EF_SUCI_Calc_Info test file
+		testfile = "A006020101020000A14B80011B81210272DA71976234CE833A6907425867B82E074D44EF907DFB4B3E21C1C2256EBCD180011E81205A8D38864820197C3394B92613B20B91633CBD897119273BF8E4A6F4EEC0A650"
+		expected = {
+			'prot_scheme_id_list': [
+				{'priority': 0, 'identifier': 2, 'key_index': 1},
+				{'priority': 1, 'identifier': 1, 'key_index': 2},
+				{'priority': 2, 'identifier': 0, 'key_index': 0}],
+			'hnet_pubkey_list': [
+				{'hnet_pubkey_identifier': 27, 'hnet_pubkey': '0272DA71976234CE833A6907425867B82E074D44EF907DFB4B3E21C1C2256EBCD1'},
+				{'hnet_pubkey_identifier': 30, 'hnet_pubkey': '5A8D38864820197C3394B92613B20B91633CBD897119273BF8E4A6F4EEC0A650'}]
+			}
+		suci_calc_info = EF_SUCI_Calc_Info()
+		decoded = suci_calc_info._decode_hex(testfile)
+		self.assertDictEqual(expected, decoded)
 
 if __name__ == "__main__":
 	unittest.main()

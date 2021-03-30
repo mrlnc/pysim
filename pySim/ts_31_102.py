@@ -278,6 +278,94 @@ from pySim.ts_51_011 import EF_CBMID, EF_ECC, EF_CBMIR
 
 import pySim.ts_102_221
 
+# TS 31.102 4.4.11.8
+class EF_SUCI_Calc_Info(TransparentEF):
+	def __init__(self, fid="4f07", sfid=0x07, name='EF.SUCI_Calc_Info', size={2, None},
+		desc='SUCI Calc Info'):
+		super().__init__(fid, sfid=sfid, name=name, desc=desc, size=size)
+
+	def _decode_prot_scheme_id_list(self, in_bytes):
+		prot_scheme_id_list = []
+		pos = 0
+		# two bytes per entry
+		while pos < len(in_bytes):
+			prot_scheme = {
+				'priority': pos//2, # first in list: high priority
+				'identifier': in_bytes[pos],
+				'key_index': in_bytes[pos+1]
+			}
+			pos += 2
+			prot_scheme_id_list.append(prot_scheme)
+		return prot_scheme_id_list
+
+	def _decode_hnet_pubkey_list(self, in_bytes):
+		hnet_pubkey_list = []
+		pos = 0
+		if in_bytes[pos] != 0xa1:
+			print("missing Home Network Public Key List data object")
+			return {}
+		pos += 1
+		hnet_pubkey_list_len = in_bytes[pos]
+		pos += 1
+
+		while pos < hnet_pubkey_list_len:
+			if in_bytes[pos] != 0x80:
+				print("missing Home Network Public Key Identifier tag")
+				return {}
+			pos += 1
+			hnet_pubkey_id_len = in_bytes[pos] # TODO might be more than 1 byte?
+			pos += 1
+			hnet_pubkey_id = in_bytes[pos:pos+hnet_pubkey_id_len][0]
+			pos += hnet_pubkey_id_len
+			if in_bytes[pos] != 0x81:
+				print("missing Home Network Public Key tag")
+				return {}
+			pos += 1
+			hnet_pubkey_len = in_bytes[pos]
+			pos += 1
+			hnet_pubkey = in_bytes[pos:pos+hnet_pubkey_len]
+			pos += hnet_pubkey_len
+
+			hnet_pubkey_list.append({
+				'hnet_pubkey_identifier': hnet_pubkey_id,
+				'hnet_pubkey': 			  "".join(["%02X" % i for i in hnet_pubkey])
+			})
+			
+		return hnet_pubkey_list
+
+	def _decode_bin(self, in_bin):
+		in_hex = b2h(in_bin)
+		return self._decode_hex(in_hex)
+
+	def _decode_hex(self, in_hex):
+		# hex string to bytes
+		in_bytes = [int(in_hex[2*i:2*(i+1)], 16) for i in range(len(in_hex)//2)]
+
+		pos = 0
+		if in_bytes[pos] != 0xa0:
+			print("missing Protection Scheme Identifier List data object tag")
+			return {}
+		pos += 1
+
+		prot_scheme_id_list_len = in_bytes[pos] # TODO maybe more than 1 byte
+		pos += 1
+		# strip header (first two bytes) and decode
+		prot_scheme_id_list = self._decode_prot_scheme_id_list(in_bytes[pos:pos+prot_scheme_id_list_len])
+		pos += prot_scheme_id_list_len
+
+		# remaining data holds Home Network Public Key Data Object
+		hnet_pubkey_list = self._decode_hnet_pubkey_list(in_bytes[pos:])
+
+		return {
+			'prot_scheme_id_list': 	prot_scheme_id_list,
+			'hnet_pubkey_list': 	hnet_pubkey_list
+		}
+
+	
+	def _encode_bin(self, in_json):
+		# TODO
+		return True
+
 class EF_LI(TransRecEF):
     def __init__(self, fid='6f05', sfid=None, name='EF.LI', size={2,None}, rec_len=2,
                  desc='Language Indication'):
@@ -355,7 +443,7 @@ class DF_USIM_5GS(CardDF):
           #LinFixedEF('4F04', None, 'EF.5GSN3GPPNSC', '5GS non-3GPP Access NAS Security Context'),
           TransparentEF('4F05', None, 'EF.5GAUTHKEYS', '5G authentication keys', size={68, None}),
           TransparentEF('4F06', None, 'EF.UAC_AIC', 'UAC Access Identities Configuration', size={4, 4}),
-          TransparentEF('4F07', None, 'EF.SUCI_Calc_Info', 'SUCI Calculation Information', size={2, None}),
+          EF_SUCI_Calc_Info(), #TransparentEF('4F07', None, 'EF.SUCI_Calc_Info', 'SUCI Calculation Information', size={2, None}),
           TransparentEF('4F08', None, 'EF.OPL5G', '5GS Operator PLMN List', size={10, None}),
           # TransparentEF('4F09', None, 'EF.NSI', 'Network Specific Identifier'), # FFS
           TransparentEF('4F0A', None, 'EF.Routing_Indicator', 'Routing Indicator', size={4,4}),

@@ -284,6 +284,42 @@ class EF_SUCI_Calc_Info(TransparentEF):
 		desc='SUCI Calc Info'):
 		super().__init__(fid, sfid=sfid, name=name, desc=desc, size=size)
 
+	def _encode_prot_scheme_id_list(self, in_list):
+		out_bytes = [0xa0]
+		out_bytes.append(len(in_list)*2) # two byte per entry
+
+		# position in list determines priority; high-priority items (low index) come first
+		for scheme in sorted(in_list, key=lambda item: item["priority"]):
+			out_bytes.append(scheme["identifier"])
+			out_bytes.append(scheme["key_index"])
+
+		return out_bytes
+
+	def _encode_hnet_pubkey_list(self, hnet_pubkey_list):
+		out_bytes = [0xa1] # pubkey list tag
+		out_bytes.append(0x00) # length filled later
+		length = 0
+
+		for key in hnet_pubkey_list:
+			out_bytes.append(0x80) # identifier tag
+			out_bytes.append(0x01) # TODO size, fixed to 1 byte
+			out_bytes.append(key["hnet_pubkey_identifier"])
+			out_bytes.append(0x81) # key tag
+			out_bytes.append(len(key["hnet_pubkey"])//2)
+			length += 5+len(key["hnet_pubkey"])//2
+
+			pubkey_bytes = h2b(key["hnet_pubkey"])
+			out_bytes += pubkey_bytes
+
+		# fill length
+		out_bytes[1] = length
+		return out_bytes
+
+	def _encode_hex(self, in_json):
+		out_bytes = self._encode_prot_scheme_id_list(in_json['prot_scheme_id_list'])
+		out_bytes += self._encode_hnet_pubkey_list(in_json['hnet_pubkey_list'])
+		return "".join(["%02X" % i for i in out_bytes])
+
 	def _decode_prot_scheme_id_list(self, in_bytes):
 		prot_scheme_id_list = []
 		pos = 0
@@ -328,20 +364,18 @@ class EF_SUCI_Calc_Info(TransparentEF):
 
 			hnet_pubkey_list.append({
 				'hnet_pubkey_identifier': hnet_pubkey_id,
-				'hnet_pubkey': 			  "".join(["%02X" % i for i in hnet_pubkey])
+				'hnet_pubkey': 			  b2h(hnet_pubkey)
 			})
 			
 		return hnet_pubkey_list
 
 	def _decode_bin(self, in_bin):
-		in_hex = b2h(in_bin)
-		return self._decode_hex(in_hex)
+		return self._decode_hex(b2h(in_hex))
 
 	def _decode_hex(self, in_hex):
-		# hex string to bytes
-		in_bytes = [int(in_hex[2*i:2*(i+1)], 16) for i in range(len(in_hex)//2)]
-
+		in_bytes = h2b(in_hex)
 		pos = 0
+
 		if in_bytes[pos] != 0xa0:
 			print("missing Protection Scheme Identifier List data object tag")
 			return {}
@@ -349,22 +383,20 @@ class EF_SUCI_Calc_Info(TransparentEF):
 
 		prot_scheme_id_list_len = in_bytes[pos] # TODO maybe more than 1 byte
 		pos += 1
-		# strip header (first two bytes) and decode
+		# decode Protection Scheme Identifier List data object
 		prot_scheme_id_list = self._decode_prot_scheme_id_list(in_bytes[pos:pos+prot_scheme_id_list_len])
 		pos += prot_scheme_id_list_len
 
 		# remaining data holds Home Network Public Key Data Object
 		hnet_pubkey_list = self._decode_hnet_pubkey_list(in_bytes[pos:])
-
+	
 		return {
 			'prot_scheme_id_list': 	prot_scheme_id_list,
 			'hnet_pubkey_list': 	hnet_pubkey_list
 		}
 
-	
 	def _encode_bin(self, in_json):
-		# TODO
-		return True
+		return h2b(self._encode_hex(in_json))
 
 class EF_LI(TransRecEF):
     def __init__(self, fid='6f05', sfid=None, name='EF.LI', size={2,None}, rec_len=2,

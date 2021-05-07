@@ -1,123 +1,79 @@
-pySim-prog - Utility for programmable SIM/USIM-Cards
+pySim - SIM card utility
 ====================================================
 
-This repository contains a Python-language program that can be used
-to program (write) certain fields/parameters on so-called programmable
-SIM/USIM cards.
-
-Such SIM/USIM cards are special cards, which - unlike those issued by
-regular commercial operators - come with the kind of keys that allow you
-to write the files/fields that normally only an operator can program.
+> pySim reads and writes data to programmable SIM/USIM cards.
 
 This is useful particularly if you are running your own cellular
-network, and want to issue your own SIM/USIM cards for that network.
+network and want to issue your own SIM/USIM cards for that network.
+For most pySim features, you will need a *programmable* SIM card and
+sufficient credentials (ADM PIN). You cannot re-program the SIM cards
+issued by your mobile operator.
 
+`pySim-shell.py` is the main script. It supports reading and writing in
+an interactive shell. The scripts `pySim-read` and `pySim-prog`
+exist for more specialized use-cases like bulk-programming. If you are
+unsure where to start, use `pySim-shell`.
 
-Homepage
---------
+![pySim-shell](./shell.svg)
 
-The official homepage of the project is
-<http://osmocom.org/projects/pysim/wiki>
-
-GIT Repository
---------------
-
-You can clone from the official libosmocore.git repository using
-
-	git clone git://git.osmocom.org/pysim.git
-
-There is a cgit interface at <http://git.osmocom.org/pysim/>
-
-
-Dependencies
+Installation
 ------------
 
-pysim requires:
+Clone from the official repository ([cgit](http://git.osmocom.org/pysim/)):
+```
+git clone git://git.osmocom.org/pysim.git
+```
 
-- pyscard
-- serial
-- pytlv
-- cmd2
-- jsonpath-ng
-- bidict
+Install the Python dependencies (see [requirements.txt](./requirements.txt)), e.g., using `pip`:
+```
+pip3 install -r requirements.txt
+```
 
-Example for Debian:
+You're ready to run `./pySim-shell.py`
 
-	apt-get install python3-pyscard python3-serial python3-cmd2 python3-pip python3-yaml
-	pip3 install pytlv bidict
+Usage
+-----
 
-Alternatively, everything can be installed using pip:
+Check out the [pySim User Manual](https://people.osmocom.org/laforge/tmp/pysim-doc-test/html/). Alternatively, try `--help` for command line options or call `help` within the shell.
+```
+./pySim-shell.py --help
+```
 
-	pip3 install -r requirements.txt
+```
+pySIM-shell (MF)> help
+
+Documented commands (use 'help -v' for verbose/'help <topic>' for details):
+ISO7816 Commands
+================
+activate_file  close_channel    disable_chv  open_channel  unblock_chv
+…
+```
+
+Note that some commands are file-specific and require selecting a file.
+
+There is also a 45 minute workshop recording,
+[available here ](https://people.osmocom.org/tnt/osmodevcall/osmodevcall-20210409-laforge-pysim-shell_h264_420.mp4) (MP4, 394MB).
 
 
-Mailing List
-------------
+Project Homepage
+----------------
 
-There is no separate mailing list for this project.  However,
-discussions related to pysim-prog are happening on the
-openbsc@lists.osmocom.org mailing list, please see
-<https://lists.osmocom.org/mailman/listinfo/openbsc> for subscription
-options and the list archive.
+pySim is an osmocom project.
+* [Homepage](http://osmocom.org/projects/pysim)
+* [Wiki](http://osmocom.org/projects/pysim/wiki)
+* [Issue Tracker](http://osmocom.org/projects/pysim/issues)
+
+### Mailing List
+
+Discussions related to pySim are happening on the
+openbsc@lists.osmocom.org mailing list. For subscription and archives, see
+<https://lists.osmocom.org/mailman/listinfo/openbsc>
 
 Please observe the [Osmocom Mailing List
 Rules](https://osmocom.org/projects/cellular-infrastructure/wiki/Mailing_List_Rules)
 when posting.
 
-Contributing
-------------
-
-Our coding standards are described at
-<https://osmocom.org/projects/cellular-infrastructure/wiki/Coding_standards>
-
-We are using a gerrit-based patch review process explained at
-<https://osmocom.org/projects/cellular-infrastructure/wiki/Gerrit>
-
-
-Manual
-------
-p
-Please see the sphinx based documentation in the 'docs' sub-directory
-of the source.  A PDF rendering of the user manual is available from
-<https://ftp.osmocom.org/docs/latest/osmosmlc-usermanual.pdf>
-
-
-Usage
------
-
- * Program customizable SIMs. Two modes are possible:
-
-  - one where you specify every parameter manually :
-
-./pySim-prog.py -n 26C3 -c 49 -x 262 -y 42 -i <IMSI> -s <ICCID>
-
-
-  - one where they are generated from some minimal set :
-
-./pySim-prog.py -n 26C3 -c 49 -x 262 -y 42 -z <random_string_of_choice> -j <card_num>
-
-    With <random_string_of_choice> and <card_num>, the soft will generate
-    'predictable' IMSI and ICCID, so make sure you choose them so as not to
-    conflict with anyone. (for eg. your name as <random_string_of_choice> and
-    0 1 2 ... for <card num>).
-
-  You also need to enter some parameters to select the device :
-   -t TYPE : type of card (supersim, magicsim, fakemagicsim or try 'auto')
-   -d DEV  : Serial port device (default /dev/ttyUSB0)
-   -b BAUD : Baudrate (default 9600)
-
- * Interact with SIMs from a python interactive shell (ipython for eg :)
-
-from pySim.transport.serial import SerialSimLink
-from pySim.commands import SimCardCommands
-
-sl = SerialSimLink(device='/dev/ttyUSB0', baudrate=9600)
-sc = SimCardCommands(sl)
-
-sl.wait_for_card()
-
-	# Print IMSI
-print(sc.read_binary(['3f00', '7f20', '6f07']))
-
-	# Run A3/A8
-print(sc.run_gsm('00112233445566778899aabbccddeeff'))
+### Contributing
+Submit patches to [gerrit.osmocom.org](https://gerrit.osmocom.org) for review. Please
+consider the [Guidelines](https://osmocom.org/projects/cellular-infrastructure/wiki/Gerrit)
+and our [Coding Standards](https://osmocom.org/projects/cellular-infrastructure/wiki/Coding_standards).
